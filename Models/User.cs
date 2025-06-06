@@ -18,5 +18,8 @@ namespace server.Models
         public string LastName { get; set; } = string.Empty;
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        
+        // Relación con RefreshTokens
+        public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
 } 

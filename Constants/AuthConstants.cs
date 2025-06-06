@@ -3,6 +3,7 @@ namespace server.Constants
     public static class AuthConstants
     {
         public const string JwtCookieName = "jwt";
+        public const string RefreshTokenCookieName = "refreshToken";
         public const string CorsPolicy = "AllowFrontend";
         
         public static class Messages

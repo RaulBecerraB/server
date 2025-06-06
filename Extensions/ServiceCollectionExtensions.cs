@@ -25,6 +25,7 @@ namespace server.Extensions
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IPasswordService, PasswordService>();
+            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
             return services;
         }

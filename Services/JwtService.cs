@@ -30,7 +30,7 @@ namespace server.Services
                     new Claim(ClaimTypes.Email, user.Email),
                     new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}")
                 }),
-                Expires = DateTime.UtcNow.AddDays(Convert.ToDouble(jwtSettings[AuthConstants.JwtSettings.ExpirationInDays])),
+                Expires = DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSettings["ExpirationInMinutes"])),
                 Issuer = jwtSettings[AuthConstants.JwtSettings.Issuer],
                 Audience = jwtSettings[AuthConstants.JwtSettings.Audience],
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)

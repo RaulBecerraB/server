@@ -12,15 +12,18 @@ namespace server.Services
         private readonly ApplicationDbContext _context;
         private readonly IPasswordService _passwordService;
         private readonly IJwtService _jwtService;
+        private readonly IRefreshTokenService _refreshTokenService;
 
         public AuthService(
             ApplicationDbContext context,
             IPasswordService passwordService,
-            IJwtService jwtService)
+            IJwtService jwtService,
+            IRefreshTokenService refreshTokenService)
         {
             _context = context;
             _passwordService = passwordService;
             _jwtService = jwtService;
+            _refreshTokenService = refreshTokenService;
         }
 
         public async Task<AuthResultDto> RegisterAsync(RegisterDto registerDto)
@@ -47,8 +50,9 @@ namespace server.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            // Generar JWT token
-            var token = _jwtService.GenerateToken(user);
+            // Generar tokens
+            var accessToken = _jwtService.GenerateToken(user);
+            var refreshToken = await _refreshTokenService.GenerateRefreshTokenAsync(user.Id);
 
             var userResponse = new UserResponseDto
             {
@@ -64,7 +68,13 @@ namespace server.Services
                 Success = true,
                 Message = AuthConstants.Messages.UserRegisteredSuccessfully,
                 User = userResponse,
-                Token = token
+                Tokens = new TokenResponseDto
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken.Token,
+                    AccessTokenExpires = DateTime.UtcNow.AddMinutes(15),
+                    RefreshTokenExpires = refreshToken.ExpiresAt
+                }
             };
         }
 
@@ -91,8 +101,9 @@ namespace server.Services
                 };
             }
 
-            // Generar JWT token
-            var token = _jwtService.GenerateToken(user);
+            // Generar tokens
+            var accessToken = _jwtService.GenerateToken(user);
+            var refreshToken = await _refreshTokenService.GenerateRefreshTokenAsync(user.Id);
 
             var userResponse = new UserResponseDto
             {
@@ -108,7 +119,13 @@ namespace server.Services
                 Success = true,
                 Message = AuthConstants.Messages.LoginSuccessful,
                 User = userResponse,
-                Token = token
+                Tokens = new TokenResponseDto
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken.Token,
+                    AccessTokenExpires = DateTime.UtcNow.AddMinutes(15),
+                    RefreshTokenExpires = refreshToken.ExpiresAt
+                }
             };
         }
 
