@@ -3,10 +3,12 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using server.Models;
+using server.Services.Interfaces;
+using server.Constants;
 
 namespace server.Services
 {
-    public class JwtService
+    public class JwtService : IJwtService
     {
         private readonly IConfiguration _configuration;
 
@@ -17,8 +19,8 @@ namespace server.Services
 
         public string GenerateToken(User user)
         {
-            var jwtSettings = _configuration.GetSection("JwtSettings");
-            var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"]!);
+            var jwtSettings = _configuration.GetSection(AuthConstants.ConfigSections.JwtSettings);
+            var key = Encoding.ASCII.GetBytes(jwtSettings[AuthConstants.JwtSettings.SecretKey]!);
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -28,9 +30,9 @@ namespace server.Services
                     new Claim(ClaimTypes.Email, user.Email),
                     new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}")
                 }),
-                Expires = DateTime.UtcNow.AddDays(Convert.ToDouble(jwtSettings["ExpirationInDays"])),
-                Issuer = jwtSettings["Issuer"],
-                Audience = jwtSettings["Audience"],
+                Expires = DateTime.UtcNow.AddDays(Convert.ToDouble(jwtSettings[AuthConstants.JwtSettings.ExpirationInDays])),
+                Issuer = jwtSettings[AuthConstants.JwtSettings.Issuer],
+                Audience = jwtSettings[AuthConstants.JwtSettings.Audience],
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
 
@@ -43,8 +45,8 @@ namespace server.Services
         {
             try
             {
-                var jwtSettings = _configuration.GetSection("JwtSettings");
-                var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"]!);
+                var jwtSettings = _configuration.GetSection(AuthConstants.ConfigSections.JwtSettings);
+                var key = Encoding.ASCII.GetBytes(jwtSettings[AuthConstants.JwtSettings.SecretKey]!);
 
                 var tokenHandler = new JwtSecurityTokenHandler();
                 var validationParameters = new TokenValidationParameters
@@ -52,9 +54,9 @@ namespace server.Services
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = true,
-                    ValidIssuer = jwtSettings["Issuer"],
+                    ValidIssuer = jwtSettings[AuthConstants.JwtSettings.Issuer],
                     ValidateAudience = true,
-                    ValidAudience = jwtSettings["Audience"],
+                    ValidAudience = jwtSettings[AuthConstants.JwtSettings.Audience],
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 };

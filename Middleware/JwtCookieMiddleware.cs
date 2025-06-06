@@ -1,3 +1,5 @@
+using server.Constants;
+
 namespace server.Middleware
 {
     public class JwtCookieMiddleware
@@ -11,7 +13,7 @@ namespace server.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var token = context.Request.Cookies["jwt"];
+            var token = context.Request.Cookies[AuthConstants.JwtCookieName];
 
             if (!string.IsNullOrEmpty(token))
             {

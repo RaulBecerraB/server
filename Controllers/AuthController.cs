@@ -1,12 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BCrypt.Net;
-using server.Data;
-using server.Models;
-using server.Models.DTOs;
-using server.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using server.Models.DTOs;
+using server.Services.Interfaces;
+using server.Helpers;
+using server.Constants;
 
 namespace server.Controllers
 {
@@ -14,13 +12,11 @@ namespace server.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-        private readonly JwtService _jwtService;
+        private readonly IAuthService _authService;
 
-        public AuthController(ApplicationDbContext context, JwtService jwtService)
+        public AuthController(IAuthService authService)
         {
-            _context = context;
-            _jwtService = jwtService;
+            _authService = authService;
         }
 
         [HttpPost("register")]
@@ -31,48 +27,17 @@ namespace server.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Verificar si el usuario ya existe
-            if (await _context.Users.AnyAsync(u => u.Email == registerDto.Email))
+            var result = await _authService.RegisterAsync(registerDto);
+
+            if (!result.Success)
             {
-                return BadRequest(new { message = "El email ya está registrado" });
+                return BadRequest(new { message = result.Message });
             }
 
-            // Crear nuevo usuario
-            var user = new User
-            {
-                Email = registerDto.Email,
-                FirstName = registerDto.FirstName,
-                LastName = registerDto.LastName,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password)
-            };
+            // Configurar cookie JWT
+            CookieHelper.SetJwtCookie(Response, result.Token!);
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            // Generar JWT token
-            var token = _jwtService.GenerateToken(user);
-
-            // Configurar cookie
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true, // Solo HTTPS en producción
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
-            };
-
-            Response.Cookies.Append("jwt", token, cookieOptions);
-
-            var userResponse = new UserResponseDto
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                CreatedAt = user.CreatedAt
-            };
-
-            return Ok(new { message = "Usuario registrado exitosamente", user = userResponse });
+            return Ok(new { message = result.Message, user = result.User });
         }
 
         [HttpPost("login")]
@@ -83,50 +48,24 @@ namespace server.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Buscar usuario por email
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
-            if (user == null)
+            var result = await _authService.LoginAsync(loginDto);
+
+            if (!result.Success)
             {
-                return BadRequest(new { message = "Credenciales inválidas" });
+                return BadRequest(new { message = result.Message });
             }
 
-            // Verificar contraseña
-            if (!BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
-            {
-                return BadRequest(new { message = "Credenciales inválidas" });
-            }
+            // Configurar cookie JWT
+            CookieHelper.SetJwtCookie(Response, result.Token!);
 
-            // Generar JWT token
-            var token = _jwtService.GenerateToken(user);
-
-            // Configurar cookie
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true, // Solo HTTPS en producción
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
-            };
-
-            Response.Cookies.Append("jwt", token, cookieOptions);
-
-            var userResponse = new UserResponseDto
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                CreatedAt = user.CreatedAt
-            };
-
-            return Ok(new { message = "Login exitoso", user = userResponse });
+            return Ok(new { message = result.Message, user = result.User });
         }
 
         [HttpPost("logout")]
         public IActionResult Logout()
         {
-            Response.Cookies.Delete("jwt");
-            return Ok(new { message = "Logout exitoso" });
+            CookieHelper.DeleteJwtCookie(Response);
+            return Ok(new { message = AuthConstants.Messages.LogoutSuccessful });
         }
 
         [HttpGet("me")]
@@ -140,23 +79,14 @@ namespace server.Controllers
             }
 
             var userId = int.Parse(userIdClaim.Value);
-            var user = await _context.Users.FindAsync(userId);
+            var user = await _authService.GetUserByIdAsync(userId);
 
             if (user == null)
             {
                 return NotFound();
             }
 
-            var userResponse = new UserResponseDto
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                CreatedAt = user.CreatedAt
-            };
-
-            return Ok(userResponse);
+            return Ok(user);
         }
     }
 } 
